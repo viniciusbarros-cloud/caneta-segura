@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Caneta Segura</title>
+    
+    <link rel="manifest" href="/static/manifest.json?v=3">
+    <meta name="theme-color" content="#66FF00">
+    
+    <script type="text/javascript" src="https://unpkg.com/@zxing/library@latest"></script>
+    
+    <style>
+        :root {
+            --font-family: Arial, Helvetica, sans-serif;
+            --font-color-main: #000000;
+            --font-color-sub: #555555;
+            --bg-body: #ffffff;
+            --bg-container: #ffffff;
+            --bg-input: #f9f9f9;
+            --border-input: #dddddd;
+            --color-primary: #004488;
+            --color-safe: #1b5e20;
+            --color-danger: #b71c1c;
+            --shadow-container: 0 4px 15px rgba(0,0,0,0.05);
+            --bg-modal: rgba(0,0,0,0.5);
+        }
+
+        [data-theme="dark"] {
+            --font-color-main: #ffffff;
+            --font-color-sub: #aaaaaa;
+            --bg-body: #121212;
+            --bg-container: #1e1e1e;
+            --bg-input: #2a2a2a;
+            --border-input: #444444;
+            --color-primary: #0055aa;
+            --bg-modal: rgba(0,0,0,0.8);
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-body);
+            color: var(--font-color-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 40px;
+            min-height: 100vh;
+            box-sizing: border-box;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .container { width: 100%; max-width: 400px; background: var(--bg-container); padding: 30px; border-radius: 12px; box-shadow: var(--shadow-container); text-align: center; position: relative; }
+        .config-btn { position: absolute; top: 20px; right: 20px; background: none; border: none; cursor: pointer; padding: 5px; }
+        .config-btn svg { width: 28px; height: 28px; stroke: var(--font-color-main); transition: transform 0.3s; }
+        .config-btn:hover svg { transform: rotate(90deg); }
+        .app-header { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 20px; margin-top: 10px; }
+        h1 { color: var(--color-primary); font-size: 26px; margin: 0; font-weight: bold; }
+
+        /* Estilo atualizado para o novo leitor de vídeo */
+        #leitor-video { width: 100%; max-height: 300px; border-radius: 8px; display: none; object-fit: cover; margin-bottom: 20px; background-color: #000; }
+        
+        .btn-camera { width: 100%; padding: 12px; background-color: var(--bg-input); color: var(--font-color-main); border: 2px dashed var(--color-primary); border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        
+        .form-group { text-align: left; margin-bottom: 20px; }
+        label { font-size: 16px; font-weight: bold; display: block; margin-bottom: 8px; }
+        select, input { width: 100%; padding: 15px; border: 2px solid var(--border-input); border-radius: 8px; box-sizing: border-box; font-size: 18px; font-family: var(--font-family); background-color: var(--bg-input); color: var(--font-color-main); }
+        .btn-principal { width: 100%; padding: 18px; background-color: var(--color-primary); color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        
+        #resultado { margin-top: 30px; padding: 20px; border-radius: 8px; display: none; }
+        #resultado h3 { font-size: 24px; margin-bottom: 15px; }
+        .status-perigo { background-color: rgba(183, 28, 28, 0.1); color: var(--color-danger); border: 2px solid var(--color-danger); }
+        .status-seguro { background-color: rgba(27, 94, 32, 0.1); color: var(--color-safe); border: 2px solid var(--color-safe); }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-modal); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(3px); }
+        .modal-content { background-color: var(--bg-container); padding: 25px; border-radius: 12px; width: 80%; max-width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .theme-option-btn { width: 100%; padding: 15px; margin: 8px 0; background-color: var(--bg-input); color: var(--font-color-main); border: 2px solid var(--border-input); border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .theme-option-btn.active { border-color: var(--color-primary); background-color: rgba(0, 68, 136, 0.1); }
+        .close-modal-btn { background-color: transparent; color: var(--font-color-sub); margin-top: 15px; border: none; text-decoration: underline; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <button class="config-btn" onclick="abrirModal()" aria-label="Ajustes de Tema">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </button>
+
+        <div class="app-header">
+            <img src="/static/icon-512.png" alt="Logo" style="width: 32px; height: 32px; border-radius: 6px;" onerror="this.style.display='none'">
+            <h1>Caneta Segura</h1>
+        </div>
+        
+        <p style="color: var(--font-color-sub); margin-bottom: 20px; font-size: 16px;">Verifique a autenticidade da sua caneta injetora.</p>
+
+        <button id="btn-iniciar-camera" class="btn-camera" onclick="iniciarCamera()">
+            📷 Digitalizar Código da Caixa
+        </button>
+        <video id="leitor-video"></video>
+
+        <div class="form-group">
+            <label for="medicamento">Medicamento:</label>
+            <select id="medicamento">
+                <option value="">Selecione...</option>
+                <option value="Ozempic">Ozempic</option>
+                <option value="Rybelsus">Rybelsus</option>
+                <option value="Wegovy">Wegovy</option>
+                <option value="Mounjaro">Mounjaro</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="lote">Número do Lote:</label>
+            <input type="text" id="lote" placeholder="Ex: LP6F832" autocomplete="off">
+        </div>
+
+        <button class="btn-principal" onclick="verificarLote()">🔍 Verificar Lote</button>
+
+        <div id="resultado">
+            <div id="res-icon" style="font-size: 50px; margin-bottom: 10px;"></div>
+            <h3 id="res-mensagem"></h3>
+            <p><strong>Motivo:</strong> <span id="res-motivo"></span></p>
+            <p><strong>Info Oficial:</strong> <span id="res-resolucao"></span></p>
+        </div>
+    </div>
+
+    <div id="modalTema" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Ajustes de Tema</h2>
+            <button class="theme-option-btn" id="btn-light" onclick="aplicarTema('light')">☀️ Tema Claro</button>
+            <button class="theme-option-btn" id="btn-dark" onclick="aplicarTema('dark')">🌙 Tema Escuro</button>
+            <button class="theme-option-btn" id="btn-system" onclick="aplicarTema('system')">📱 Usar Padrão do Celular</button>
+            <button class="close-modal-btn" onclick="fecharModal()">Fechar</button>
+        </div>
+    </div>
+
+    <script>
+        // Lógica do Tema
+        const modal = document.getElementById('modalTema');
+        function abrirModal() { modal.style.display = 'flex'; }
+        function fecharModal() { modal.style.display = 'none'; }
+        function aplicarTema(tema) {
+            document.querySelectorAll('.theme-option-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + tema).classList.add('active');
+            if (tema === 'system') {
+                const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+            } else {
+                document.documentElement.setAttribute('data-theme', tema);
+            }
+            localStorage.setItem('caneta-theme', tema);
+            setTimeout(fecharModal, 200);
+        }
+        const temaSalvo = localStorage.getItem('caneta-theme') || 'system';
+        aplicarTema(temaSalvo);
+
+        // --- NOVA LÓGICA DA CÂMERA COM ZXING ---
+        let codeReader;
+
+        function iniciarCamera() {
+            const videoElement = document.getElementById('leitor-video');
+            const btnCamera = document.getElementById('btn-iniciar-camera');
+            
+            videoElement.style.display = 'block';
+            btnCamera.style.display = 'none';
+
+            // Instancia o leitor multi-formato (lê Data Matrix nativamente)
+            codeReader = new ZXing.BrowserMultiFormatReader();
+
+            codeReader.decodeFromVideoDevice(undefined, 'leitor-video', (result, err) => {
+                if (result) {
+                    // CÓDIGO LIDO COM SUCESSO!
+                    let decodedText = result.getText();
+                    let loteExtraido = decodedText;
+
+                    // Filtro GS1 (Tenta extrair apenas o lote de códigos longos)
+                    if (decodedText.length > 20) {
+                        let match = decodedText.match(/\(10\)([A-Za-z0-9]+)/);
+                        if (match) {
+                            loteExtraido = match[1];
+                        } else {
+                            let matchSemParenteses = decodedText.match(/10([A-Z0-9]{5,10})(?:21|$)/);
+                            if (matchSemParenteses) {
+                                loteExtraido = matchSemParenteses[1];
+                            }
+                        }
+                    }
+
+                    // Preenche o campo
+                    document.getElementById('lote').value = loteExtraido; 
+                    
+                    // Desliga a câmera
+                    codeReader.reset();
+                    videoElement.style.display = 'none';
+                    btnCamera.style.display = 'flex'; 
+                    btnCamera.innerText = '✅ Lote Escaneado! Escanear outro?';
+                    
+                    if (navigator.vibrate) navigator.vibrate(200);
+                }
+            }).catch((err) => {
+                alert("Erro ao abrir a câmera traseira. Verifique as permissões.");
+                btnCamera.style.display = 'flex';
+                videoElement.style.display = 'none';
+            });
+        }
+
+        // --- INTEGRAÇÃO COM A BASE DE DADOS (PYTHON) ---
+        async function verificarLote() {
+            const med = document.getElementById('medicamento').value;
+            const lote = document.getElementById('lote').value;
+            const res = document.getElementById('resultado');
+
+            if (!med || !lote) return alert("Por favor, preencha todos os campos ou digitalize um lote.");
+            res.style.display = "none";
+
+            try {
+                const req = await fetch(`/api/verificar?medicamento=${med}&lote=${lote}`);
+                const dados = await req.json();
+
+                if (req.ok) {
+                    document.getElementById('res-mensagem').innerText = dados.mensagem;
+                    document.getElementById('res-motivo').innerText = dados.motivo;
+                    document.getElementById('res-resolucao').innerText = dados.resolucao;
+
+                    res.className = dados.status === "PERIGO" ? "status-perigo" : "status-seguro";
+                    document.getElementById('res-icon').innerText = dados.status === "PERIGO" ? "🚨" : "✅";
+                    res.style.display = "block";
+                } else {
+                    alert("Erro do Servidor: " + dados.erro);
+                }
+            } catch (e) { alert("Erro de ligação. O servidor Python está rodando?"); }
+        }
+    </script>
+</body>
+</html>
