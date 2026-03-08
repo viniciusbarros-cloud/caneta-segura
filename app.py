@@ -58,7 +58,8 @@ def verificar():
             return jsonify({
                 'status': 'SEGURO',
                 'mensagem': f'Lote {lote} não consta na lista de falsificações.',
-                'motivo': '⚠️ ATENÇÃO: Um lote válido não garante a autenticidade se a embalagem for adulterada ou o lote for clonado.',
+                'motivo': 
+                '⚠️ ATENÇÃO: Um lote válido não garante a autenticidade se a embalagem for adulterada ou o lote for clonado.',
                 'resolucao': 'Verifique as 3 regras de ouro:\n1) A embalagem DEVE estar em Português do Brasil.\n2) A caneta NÃO pode ter números de unidades de insulina giratórios.\n3) O líquido da caneta deve ser 100% transparente.'
             })
 
@@ -71,3 +72,4 @@ if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
 
     app.run(host='0.0.0.0', port=port, debug=True)
+
