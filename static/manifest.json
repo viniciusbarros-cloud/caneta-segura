@@ -7,10 +7,11 @@
   "theme_color": "#004488",
   "icons": [
     {
-      "src": "/static/icon-512.png",
+      "src": "/static/novo_icone.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
   ]
 }
+
